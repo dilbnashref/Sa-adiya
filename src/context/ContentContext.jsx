@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 
 const ContentContext = createContext();
 
@@ -41,14 +41,7 @@ const defaultContent = {
 };
 
 export const ContentProvider = ({ children }) => {
-    const [content, setContent] = useState(() => {
-        const saved = localStorage.getItem('siteContent');
-        return saved ? JSON.parse(saved) : defaultContent;
-    });
-
-    useEffect(() => {
-        localStorage.setItem('siteContent', JSON.stringify(content));
-    }, [content]);
+    const [content, setContent] = useState(defaultContent);
 
     const updateContent = (section, key, value) => {
         setContent(prev => ({

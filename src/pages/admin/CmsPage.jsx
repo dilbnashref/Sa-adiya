@@ -3,7 +3,7 @@ import { useContent } from '../../context/ContentContext';
 import HomePage from '../HomePage';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { convertFileToBase64 } from '../../utils/fileUtils';
+import { fileToBase64 } from '../../utils/fileUtils';
 
 const CmsPage = () => {
     const { content, updateContent, addItem, removeItem } = useContent();
@@ -12,7 +12,7 @@ const CmsPage = () => {
 
     // Local state for forms
     const [newFounder, setNewFounder] = useState({ name: '', role: '', image: '' });
-    const [newInstitute, setNewInstitute] = useState({ name: '', link: '' });
+    const [newInstitute, setNewInstitute] = useState({ name: '', link: '', image: '' });
     const [newImage, setNewImage] = useState('');
 
     // --- Handlers ---
@@ -25,46 +25,22 @@ const CmsPage = () => {
         }
     };
 
-    const handleHeroImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            try {
-                const base64 = await convertFileToBase64(file);
-                handleHomeTextChange('bannerImage', base64);
-            } catch (err) {
-                alert("Error uploading image");
-            }
-        }
-    };
-
-    const handleFounderImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            try {
-                const base64 = await convertFileToBase64(file);
-                setNewFounder(prev => ({ ...prev, image: base64 }));
-            } catch (err) {
-                alert("Error uploading image");
-            }
-        }
-    };
-
-    const handleGalleryImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            try {
-                const base64 = await convertFileToBase64(file);
-                // Immediately add to gallery or set to state?
-                // Current UI has 'Add' button. Let's set to state first.
-                setNewImage(base64);
-            } catch (err) {
-                alert("Error uploading image");
-            }
-        }
-    };
-
     const handleContactChange = (key, value) => {
         updateContent('contact', key, value);
+    };
+
+    // Generic Image Upload Handler
+    const handleFileUpload = async (e, callback) => {
+        const file = e.target.files[0];
+        if (file) {
+            try {
+                const base64 = await fileToBase64(file);
+                callback(base64);
+            } catch (err) {
+                console.error("Error converting file:", err);
+                alert("Failed to upload image.");
+            }
+        }
     };
 
     const handleAddFounder = (e) => {
@@ -76,7 +52,7 @@ const CmsPage = () => {
     const handleAddInstitute = (e) => {
         e.preventDefault();
         addItem('home', 'institutes', newInstitute);
-        setNewInstitute({ name: '', link: '' });
+        setNewInstitute({ name: '', link: '', image: '' });
     };
 
     const handleAddImage = (e) => {
@@ -140,9 +116,13 @@ const CmsPage = () => {
                                     <label className="block mb-2">Subtitle</label>
                                     <input className="w-full p-2 mb-2 border rounded" style={{ width: '100%' }} value={content.home.hero.subtitle} onChange={e => handleHomeTextChange('subtitle', e.target.value)} />
                                     <label className="block mb-2">Banner Image</label>
-                                    {/* File Upload */}
-                                    <input type="file" accept="image/*" className="w-full p-2 mb-2" onChange={handleHeroImageUpload} />
-                                    <div style={{ fontSize: '0.8rem', color: 'gray' }}>Current: {content.home.hero.bannerImage ? 'Image Set' : 'None'}</div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                                        <input className="w-full p-2 border rounded" style={{ flex: 1 }} value={content.home.hero.bannerImage} onChange={e => handleHomeTextChange('bannerImage', e.target.value)} placeholder="Image URL" />
+                                        <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
+                                            Upload
+                                            <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e, base64 => handleHomeTextChange('bannerImage', base64))} />
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -169,9 +149,15 @@ const CmsPage = () => {
                             <form onSubmit={handleAddFounder} className="mt-2">
                                 <input placeholder="Name" className="w-full p-2 mb-2 border rounded" style={{ width: '100%' }} required value={newFounder.name} onChange={e => setNewFounder({ ...newFounder, name: e.target.value })} />
                                 <input placeholder="Role" className="w-full p-2 mb-2 border rounded" style={{ width: '100%' }} required value={newFounder.role} onChange={e => setNewFounder({ ...newFounder, role: e.target.value })} />
-                                <label className="block mb-1 text-sm">Upload Photo</label>
-                                <input type="file" accept="image/*" className="w-full p-2 mb-2" required onChange={handleFounderImageUpload} />
-                                {newFounder.image && <div style={{ fontSize: '0.8rem', color: 'green' }}>Image Selected</div>}
+
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                                    <input placeholder="Image URL" className="w-full p-2 border rounded" style={{ flex: 1 }} required value={newFounder.image} onChange={e => setNewFounder({ ...newFounder, image: e.target.value })} />
+                                    <label className="btn btn-secondary" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                        Upload
+                                        <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e, base64 => setNewFounder({ ...newFounder, image: base64 }))} />
+                                    </label>
+                                </div>
+
                                 <button className="btn btn-primary">Add Person</button>
                             </form>
                         </div>
@@ -199,14 +185,26 @@ const CmsPage = () => {
                             <form onSubmit={handleAddInstitute} className="mt-2">
                                 <input placeholder="Name" className="w-full p-2 mb-2 border rounded" style={{ width: '100%' }} required value={newInstitute.name} onChange={e => setNewInstitute({ ...newInstitute, name: e.target.value })} />
                                 <input placeholder="Link (e.g., /institutes/xyz)" className="w-full p-2 mb-2 border rounded" style={{ width: '100%' }} required value={newInstitute.link} onChange={e => setNewInstitute({ ...newInstitute, link: e.target.value })} />
+
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                                    <input placeholder="Image/Logo URL (Optional)" className="w-full p-2 border rounded" style={{ flex: 1 }} value={newInstitute.image || ''} onChange={e => setNewInstitute({ ...newInstitute, image: e.target.value })} />
+                                    <label className="btn btn-secondary" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                        Upload
+                                        <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e, base64 => setNewInstitute({ ...newInstitute, image: base64 }))} />
+                                    </label>
+                                </div>
+
                                 <button className="btn btn-primary">Add Institute</button>
                             </form>
                         </div>
                         {content.home.institutes.map(i => (
                             <div key={i.id} className="card mt-2" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
-                                <div>
-                                    <strong>{i.name}</strong><br />
-                                    <span style={{ fontSize: '0.8rem' }}>{i.link}</span>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                    {i.image && <img src={i.image} alt="" style={{ width: 30, height: 30, objectFit: 'contain' }} />}
+                                    <div>
+                                        <strong>{i.name}</strong><br />
+                                        <span style={{ fontSize: '0.8rem' }}>{i.link}</span>
+                                    </div>
                                 </div>
                                 <button className="btn" style={{ color: 'red' }} onClick={() => removeItem('home', 'institutes', i.id)}>Delete</button>
                             </div>
@@ -220,11 +218,15 @@ const CmsPage = () => {
                         <h3>Photo Gallery</h3>
                         <div className="card mb-4">
                             <h4>Add Image</h4>
-                            <form onSubmit={handleAddImage} className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <label className="block mb-1 text-sm">Upload Photo</label>
-                                <input type="file" accept="image/*" className="w-full p-2" onChange={handleGalleryImageUpload} />
-                                {newImage && <img src={newImage} style={{ height: 50, objectFit: 'contain', alignSelf: 'flex-start' }} alt="Preview" />}
-                                <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>Add to Gallery</button>
+                            <form onSubmit={handleAddImage} className="mt-2">
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                                    <input placeholder="Image URL" className="w-full p-2 border rounded" style={{ flex: 1 }} required value={newImage} onChange={e => setNewImage(e.target.value)} />
+                                    <label className="btn btn-secondary" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                        Upload
+                                        <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e, base64 => setNewImage(base64))} />
+                                    </label>
+                                </div>
+                                <button className="btn btn-primary">Add to Gallery</button>
                             </form>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
